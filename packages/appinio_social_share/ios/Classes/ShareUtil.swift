@@ -500,14 +500,13 @@ public class ShareUtil{
             let backgroundBottomColor =  args[self.argBackgroundBottomColor] as? String
             let attributionURL =  args[self.argAttributionURL] as? String
 
-            
             guard let instagramURL = URL(string: "instagram-stories://share?source_application=\(appId!)") else {
                 result(ERROR_APP_NOT_AVAILABLE)
                 return
             }
             
      
-            if (UIApplication.shared.canOpenURL(instagramURL)) {
+            //if (UIApplication.shared.canOpenURL(instagramURL)) {
                 var backgroundImage: UIImage?;
                 if(!(imagePath==nil)){
                     backgroundImage =  UIImage.init(contentsOfFile: imagePath!)
@@ -537,9 +536,9 @@ public class ShareUtil{
                 UIPasteboard.general.setItems(pasteboardItems, options: pasteboardOptions)
                 UIApplication.shared.open(instagramURL, options: [:])
                 result(self.SUCCESS)
-            } else {
-                result(ERROR_APP_NOT_AVAILABLE)
-            }
+            //} else {
+              //  result(ERROR_APP_NOT_AVAILABLE)
+           // }
         }else{
             result(ERROR_FEATURE_NOT_AVAILABLE_FOR_THIS_VERSON)
         }
