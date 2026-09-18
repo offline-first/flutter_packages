@@ -1,6 +1,5 @@
 import Photos
 import FBSDKShareKit
-import MobileCoreServices
 
 
 
@@ -70,18 +69,7 @@ public class ShareUtil{
     }
 
     func isImage(filePath:String)->Bool{
-        guard
-            let ext = NSURL(fileURLWithPath: filePath).pathExtension,
-            !ext.isEmpty,
-            let uti = UTTypeCreatePreferredIdentifierForTag(
-            kUTTagClassFilenameExtension,
-            ext as CFString,
-            nil
-            )?.takeRetainedValue()
-        else {
-            return false
-        }
-        return UTTypeConformsTo(uti, kUTTypeImage)
+        UIImage(contentsOfFile: filePath) != nil
     }
 
 
@@ -574,19 +562,33 @@ public class ShareUtil{
 }
 
 extension UIApplication {
-    class func topViewController(controller: UIViewController? = UIApplication.shared.keyWindow?.rootViewController) -> UIViewController? {
-        if let navigationController = controller as? UINavigationController {
+    class func topViewController(controller: UIViewController? = nil) -> UIViewController? {
+        let rootController: UIViewController?
+        if let controller = controller {
+            rootController = controller
+        } else if #available(iOS 13.0, *) {
+            rootController = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }
+                .filter { $0.activationState == .foregroundActive }
+                .flatMap(\.windows)
+                .first(where: \.isKeyWindow)?
+                .rootViewController
+        } else {
+            rootController = UIApplication.shared.delegate?.window??.rootViewController
+        }
+
+        if let navigationController = rootController as? UINavigationController {
             return topViewController(controller: navigationController.visibleViewController)
         }
-        if let tabController = controller as? UITabBarController {
+        if let tabController = rootController as? UITabBarController {
             if let selected = tabController.selectedViewController {
                 return topViewController(controller: selected)
             }
         }
-        if let presented = controller?.presentedViewController {
+        if let presented = rootController?.presentedViewController {
             return topViewController(controller: presented)
         }
-        return controller
+        return rootController
     }
 }
 

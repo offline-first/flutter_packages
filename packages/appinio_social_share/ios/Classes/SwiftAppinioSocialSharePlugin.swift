@@ -32,42 +32,41 @@ public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin, SharingDele
   }
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-      do {
-      let args = call.arguments as? [String: Any?]
+      let args = call.arguments as? [String: Any?] ?? [:]
 
       switch (call.method) {
       case INSTALLED_APPS:
           shareUtil.getInstalledApps(result: result)
           break
       case INSTAGRAM_DIRECT:
-          shareUtil.shareToInstagramDirect(args:args!,result: result)
+          shareUtil.shareToInstagramDirect(args:args,result: result)
           break
       case INSTAGRAM_POST:
-          shareUtil.shareToInstagramFeed(args:args!,result: result)
+          shareUtil.shareToInstagramFeed(args:args,result: result)
           break
       case INSTAGRAM_STORIES:
-          shareUtil.shareToInstagramStory(args:args!,result:result)
+          shareUtil.shareToInstagramStory(args:args,result:result)
           break
       case FACEBOOK_STORIES:
-          shareUtil.shareToFacebookStory(args:args!,result:result)
+          shareUtil.shareToFacebookStory(args:args,result:result)
           break
       case WHATSAPP_IMG_IOS:
-          shareUtil.shareImageToWhatsApp(args:args!, result:result)
+          shareUtil.shareImageToWhatsApp(args:args, result:result)
           break
       case WHATSAPP:
-          shareUtil.shareToWhatsApp(args:args!, result:result)
+          shareUtil.shareToWhatsApp(args:args, result:result)
           break
       case TWITTER:
-          shareUtil.shareToTwitter(args:args!,result:result)
+          shareUtil.shareToTwitter(args:args,result:result)
           break
       case SMS:
-          shareUtil.shareToSms(args: args!, result: result)
+          shareUtil.shareToSms(args: args, result: result)
           break
       case SYSTEM_SHARE:
-          shareUtil.shareToSystem(args:args!,result: result)
+          shareUtil.shareToSystem(args:args,result: result)
           break
       case COPY_TO_CLIPBOARD:
-          shareUtil.copyToClipboard(args: args!, result: result)
+          shareUtil.copyToClipboard(args: args, result: result)
           break
       case FACEBOOK:
           guard facebookResult == nil else {
@@ -75,20 +74,17 @@ public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin, SharingDele
               break
           }
           facebookResult = result
-          if !shareUtil.shareToFacebookPost(args:args!, result: result, delegate: self) {
+          if !shareUtil.shareToFacebookPost(args:args, result: result, delegate: self) {
               facebookResult = nil
           }
           break
       case TELEGRAM:
-          shareUtil.shareToTelegram(args:args!, result:result)
+          shareUtil.shareToTelegram(args:args, result:result)
           break
       case MESSENGER:
-          shareUtil.shareToMessenger(args: args!, result: result)
+          shareUtil.shareToMessenger(args: args, result: result)
           break
       default:
-          result(shareUtil.ERROR)
-      }
-      } catch {
           result(shareUtil.ERROR)
       }
   }
