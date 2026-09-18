@@ -1,10 +1,11 @@
 import Flutter
 import UIKit
+import FBSDKShareKit
 import Photos
 
 
 
-public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin {
+public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin, SharingDelegate {
 
     private let INSTAGRAM_DIRECT:String = "instagram_direct";
     private let INSTAGRAM_STORIES:String = "instagram_stories";
@@ -23,6 +24,7 @@ public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin {
 
 
     var shareUtil = ShareUtil()
+    private var facebookResult: FlutterResult?
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "appinio_social_share", binaryMessenger: registrar.messenger())
     let instance = SwiftAppinioSocialSharePlugin()
@@ -68,7 +70,14 @@ public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin {
           shareUtil.copyToClipboard(args: args!, result: result)
           break
       case FACEBOOK:
-          shareUtil.shareToFacebookPost(args:args!, result: result)
+          guard facebookResult == nil else {
+              result(shareUtil.ERROR)
+              break
+          }
+          facebookResult = result
+          if !shareUtil.shareToFacebookPost(args:args!, result: result, delegate: self) {
+              facebookResult = nil
+          }
           break
       case TELEGRAM:
           shareUtil.shareToTelegram(args:args!, result:result)
@@ -82,6 +91,25 @@ public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin {
       } catch {
           result(shareUtil.ERROR)
       }
+  }
+
+  public func sharer(_ sharer: Sharing, didCompleteWithResults results: [String : Any]) {
+      completeFacebookShare(with: shareUtil.SUCCESS)
+  }
+
+  public func sharer(_ sharer: Sharing, didFailWithError error: Error) {
+      completeFacebookShare(with: shareUtil.ERROR)
+  }
+
+  public func sharerDidCancel(_ sharer: Sharing) {
+      completeFacebookShare(with: "CANCELLED")
+  }
+
+  private func completeFacebookShare(with value: String) {
+      guard let result = facebookResult else { return }
+      facebookResult = nil
+      shareUtil.releaseFacebookDialog()
+      result(value)
   }
     
 }

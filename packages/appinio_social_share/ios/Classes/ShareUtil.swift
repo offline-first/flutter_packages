@@ -1,9 +1,12 @@
 import Photos
+import FBSDKShareKit
 import MobileCoreServices
 
 
 
 public class ShareUtil{
+
+    private var facebookDialog: ShareDialog?
 
     public let SUCCESS: String = "SUCCESS"
     public let ERROR_APP_NOT_AVAILABLE: String = "ERROR_APP_NOT_AVAILABLE"
@@ -50,196 +53,128 @@ public class ShareUtil{
             result(ERROR)
             return
         }
-        presentSystemShare(
-            message: args[argMessage] as? String,
-            filePaths: [filePath],
+        guard FileManager.default.fileExists(atPath: filePath) else {
+            result(ERROR)
+            return
+        }
+        guard canOpenUrl(appName: "instagram") else {
+            result(ERROR_APP_NOT_AVAILABLE)
+            return
+        }
+
+        saveToPhotoLibraryAndOpenInstagram(
+            filePath: filePath,
+            isImage: isImage(filePath: filePath),
             result: result
         )
     }
 
     func isImage(filePath:String)->Bool{
-        let ext = NSURL(fileURLWithPath: filePath).pathExtension
-        let uti = UTTypeCreatePreferredIdentifierForTag(
+        guard
+            let ext = NSURL(fileURLWithPath: filePath).pathExtension,
+            !ext.isEmpty,
+            let uti = UTTypeCreatePreferredIdentifierForTag(
             kUTTagClassFilenameExtension,
-            ext! as CFString,
-            nil)
-        if UTTypeConformsTo((uti?.takeRetainedValue())!, kUTTypeImage) {
-            return true
+            ext as CFString,
+            nil
+            )?.takeRetainedValue()
+        else {
+            return false
         }
-        return false
+        return UTTypeConformsTo(uti, kUTTypeImage)
     }
 
 
-    func shareVideoToInstagramFeed(args : [String: Any?],result: @escaping FlutterResult) {
-        let videoFile = args[argImagePath] as? String
-        let backgroundVideoUrl = URL(fileURLWithPath: videoFile!)
-        let videoData = try? Data(contentsOf: backgroundVideoUrl) as NSData
-
+    private func saveToPhotoLibraryAndOpenInstagram(
+        filePath: String,
+        isImage: Bool,
+        result: @escaping FlutterResult
+    ) {
         getLibraryPermissionIfNecessary { granted in
-
             guard granted else {
-                result(self.ERROR)
+                self.complete(result, with: self.ERROR)
                 return
             }
-        }
 
-        PHPhotoLibrary.shared().performChanges({
-
-            let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0];
-            let filePath = "\(documentsPath)/\(Date().description).mp4"
-
-            videoData!.write(toFile: filePath, atomically: true)
-            PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: URL(fileURLWithPath: filePath))
-        },
-        completionHandler: { success, error in
-
-            if success {
-
-                let fetchOptions = PHFetchOptions()
-
-                fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-
-                let fetchResult = PHAsset.fetchAssets(with: .video, options: fetchOptions)
-
-                if let lastAsset = fetchResult.firstObject {
-
-                    let localIdentifier = lastAsset.localIdentifier
-                    let urlFeed = "instagram://library?LocalIdentifier=" + localIdentifier
-
-                    guard
-                        let url = URL(string: urlFeed)
-                    else {
-
-                        result(self.ERROR_APP_NOT_AVAILABLE)
-                        return
-                    }
-                    DispatchQueue.main.async {
-
-                        if UIApplication.shared.canOpenURL(url) {
-
-                            if #available(iOS 10.0, *) {
-
-                                UIApplication.shared.open(url, options: [:], completionHandler: { (success) in
-                                    result(self.SUCCESS)
-                                })
-                            }
-                            else {
-
-                                UIApplication.shared.openURL(url)
-                                result(self.SUCCESS)
-                            }
-                        }
-                        else {
-
-                            result(self.ERROR)
-                        }
-                    }
+            let fileURL = URL(fileURLWithPath: filePath)
+            var localIdentifier: String?
+            PHPhotoLibrary.shared().performChanges({
+                let request: PHAssetChangeRequest?
+                if isImage {
+                    request = PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: fileURL)
+                } else {
+                    request = PHAssetChangeRequest.creationRequestForAssetFromVideo(atFileURL: fileURL)
                 }
-            }
-            else if let error = error {
-
-                print(error.localizedDescription)
-            }
-            else {
-
-                result(self.ERROR)
-            }
-        })
-    }
-
-    func shareImageToInstagramFeed(args : [String: Any?],result: @escaping FlutterResult) {
-            let videoFile = args[argImagePath] as? String
-            let backgroundVideoUrl = URL(fileURLWithPath: videoFile!)
-            let videoData = try? Data(contentsOf: backgroundVideoUrl) as NSData
-
-            getLibraryPermissionIfNecessary { granted in
-
-                guard granted else {
-                    result(self.ERROR)
+                localIdentifier = request?.placeholderForCreatedAsset?.localIdentifier
+            }, completionHandler: { success, error in
+                guard success, error == nil, let localIdentifier = localIdentifier else {
+                    self.complete(result, with: self.ERROR)
                     return
                 }
-            }
-
-
-            PHPhotoLibrary.shared().performChanges({
-
-                let documentsPath = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0];
-                let filePath:String
-                     filePath = "\(documentsPath)/\(Date().description).jpeg"
-
-
-                videoData!.write(toFile: filePath, atomically: true)
-                    PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: URL(fileURLWithPath: filePath))
-
-            },
-            completionHandler: { success, error in
-
-                if success {
-
-                    let fetchOptions = PHFetchOptions()
-
-                    fetchOptions.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: false)]
-                    let type:PHAssetMediaType;
-                        type = PHAssetMediaType.image
-
-
-                    let fetchResult = PHAsset.fetchAssets(with: type, options: fetchOptions)
-
-                    if let lastAsset = fetchResult.firstObject {
-
-                        let localIdentifier = lastAsset.localIdentifier
-                        let urlFeed = "instagram://library?LocalIdentifier=" + localIdentifier
-
-                        guard
-                            let url = URL(string: urlFeed)
-                        else {
-
-                            result(self.ERROR_APP_NOT_AVAILABLE)
-                            return
-                        }
-                        DispatchQueue.main.async {
-
-                            if UIApplication.shared.canOpenURL(url) {
-
-                                if #available(iOS 10.0, *) {
-
-                                    UIApplication.shared.open(url, options: [:], completionHandler: { (success) in
-                                        result(self.SUCCESS)
-                                    })
-                                }
-                                else {
-
-                                    UIApplication.shared.openURL(url)
-                                    result(self.SUCCESS)
-                                }
-                            }
-                            else {
-
-                                result(self.ERROR)
-                            }
-                        }
-                    }
-                }
-                else if let error = error {
-
-                    print(error.localizedDescription)
-                }
-                else {
-
-                    result(self.ERROR)
-                }
+                self.openInstagramFeed(localIdentifier: localIdentifier, result: result)
             })
         }
+    }
 
-    func getLibraryPermissionIfNecessary(completionHandler: @escaping  (Bool) -> Void) {
-
-        guard PHPhotoLibrary.authorizationStatus() != .authorized else {
-            completionHandler(true)
+    private func openInstagramFeed(
+        localIdentifier: String,
+        result: @escaping FlutterResult
+    ) {
+        var components = URLComponents()
+        components.scheme = "instagram"
+        components.host = "library"
+        components.queryItems = [
+            URLQueryItem(name: "LocalIdentifier", value: localIdentifier)
+        ]
+        guard let url = components.url else {
+            complete(result, with: ERROR)
             return
         }
 
-        PHPhotoLibrary.requestAuthorization { status in
-            completionHandler(status == .authorized)
+        DispatchQueue.main.async {
+            guard UIApplication.shared.canOpenURL(url) else {
+                result(self.ERROR_APP_NOT_AVAILABLE)
+                return
+            }
+            UIApplication.shared.open(url, options: [:]) { opened in
+                result(opened ? self.SUCCESS : self.ERROR)
+            }
+        }
+    }
+
+    private func complete(_ result: @escaping FlutterResult, with value: String) {
+        DispatchQueue.main.async {
+            result(value)
+        }
+    }
+
+    func getLibraryPermissionIfNecessary(completionHandler: @escaping  (Bool) -> Void) {
+        if #available(iOS 14, *) {
+            let status = PHPhotoLibrary.authorizationStatus(for: .addOnly)
+            if status == .authorized || status == .limited {
+                completionHandler(true)
+                return
+            }
+            guard status == .notDetermined else {
+                completionHandler(false)
+                return
+            }
+            PHPhotoLibrary.requestAuthorization(for: .addOnly) { newStatus in
+                completionHandler(newStatus == .authorized || newStatus == .limited)
+            }
+        } else {
+            let status = PHPhotoLibrary.authorizationStatus()
+            if status == .authorized {
+                completionHandler(true)
+                return
+            }
+            guard status == .notDetermined else {
+                completionHandler(false)
+                return
+            }
+            PHPhotoLibrary.requestAuthorization { newStatus in
+                completionHandler(newStatus == .authorized)
+            }
         }
     }
 
@@ -317,13 +252,57 @@ public class ShareUtil{
     
     
     
-    func shareToFacebookPost(args : [String: Any?],result: @escaping FlutterResult) {
-        presentSystemShare(
-            message: args[self.argMessage] as? String,
-            filePaths: args[self.argImagePaths] as? [String] ?? [],
-            result: result
+    @discardableResult
+    func shareToFacebookPost(
+        args: [String: Any?],
+        result: @escaping FlutterResult,
+        delegate: SharingDelegate
+    ) -> Bool {
+        let imagePaths = args[self.argImagePaths] as? [String] ?? []
+        let photos = imagePaths.compactMap { path -> SharePhoto? in
+            guard let image = UIImage(contentsOfFile: path) else { return nil }
+            return SharePhoto(image: image, isUserGenerated: true)
+        }
+        guard !photos.isEmpty, let presenter = UIApplication.topViewController() else {
+            result(ERROR)
+            return false
+        }
+
+        if let message = args[self.argMessage] as? String, !message.isEmpty {
+            UIPasteboard.general.string = message
+        }
+
+        let content = SharePhotoContent()
+        content.photos = photos
+        let dialog = ShareDialog(
+            viewController: presenter,
+            content: content,
+            delegate: delegate
         )
-        
+        facebookDialog = dialog
+        dialog.mode = .native
+        guard dialog.canShow else {
+            facebookDialog = nil
+            result(ERROR_APP_NOT_AVAILABLE)
+            return false
+        }
+        do {
+            try dialog.validate()
+        } catch {
+            facebookDialog = nil
+            result(ERROR)
+            return false
+        }
+        guard dialog.show() else {
+            facebookDialog = nil
+            result(ERROR)
+            return false
+        }
+        return true
+    }
+
+    func releaseFacebookDialog() {
+        facebookDialog = nil
     }
     
     
@@ -475,11 +454,23 @@ public class ShareUtil{
     
     
     func shareToTwitter(args : [String: Any?],result: @escaping FlutterResult) {
-        presentSystemShare(
-            message: args[self.argMessage] as? String,
-            filePaths: args[self.argImagePaths] as? [String] ?? [],
-            result: result
-        )
+        guard canOpenUrl(appName: "twitter") else {
+            result(ERROR_APP_NOT_AVAILABLE)
+            return
+        }
+        var components = URLComponents()
+        components.scheme = "twitter"
+        components.host = "post"
+        components.queryItems = [
+            URLQueryItem(name: "message", value: args[self.argMessage] as? String ?? "")
+        ]
+        guard let url = components.url else {
+            result(ERROR)
+            return
+        }
+        UIApplication.shared.open(url, options: [:]) { opened in
+            result(opened ? self.SUCCESS : self.ERROR)
+        }
     }
 
     

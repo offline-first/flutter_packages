@@ -1,3 +1,10 @@
+## 0.3.4
+
+* Restore direct Instagram Feed handoff on iOS using the created Photos asset.
+* Restore Facebook's native Share Dialog with FBSDKShareKit 18.
+* Open the X app's composer directly instead of showing the system share sheet.
+* Raise the iOS deployment target to 12.0, matching FBSDKShareKit 18.
+
 ## 0.3.3
 
 * Replace removed iOS social composers with the supported system share sheet.
