@@ -1,7 +1,4 @@
 import Photos
-import FBSDKCoreKit
-import FBSDKShareKit
-import Social
 import MobileCoreServices
 
 
@@ -30,14 +27,10 @@ public class ShareUtil{
 
     
     public func getInstalledApps(result: @escaping FlutterResult){
-        let apps = [["instagram","instagram"],["facebook-stories","facebook_stories"],["whatsapp","whatsapp"],["tg","telegram"],["fb-messenger","messenger"],["tiktok","snssdk1233"],["instagram-stories","instagram_stories"],["twitter","twitter"],["sms","message"]]
+        let apps = [["instagram","instagram"],["facebook-stories","facebook_stories"],["fbauth2","facebook"],["whatsapp","whatsapp"],["tg","telegram"],["fb-messenger","messenger"],["tiktok","snssdk1233"],["instagram-stories","instagram_stories"],["twitter","twitter"],["sms","message"]]
         var output:[String: Bool] = [:]
         for app in apps {
             if(UIApplication.shared.canOpenURL(URL(string:(app[0])+"://")!)){
-                if(app[0] == "facebook-stories"){
-                    output["facebook"] = true
-
-                }
                 output[app[1]] = true
             }else{
                 output[app[1]] = false
@@ -53,12 +46,15 @@ public class ShareUtil{
 
 
     public func shareToInstagramFeed(args : [String: Any?],result: @escaping FlutterResult) {
-        let filePath = args[argImagePath] as? String
-        if(!isImage(filePath: filePath!)) {
-            return shareVideoToInstagramFeed(args: args, result:result)
-        } else{
-            return shareImageToInstagramFeed(args: args, result:result)
+        guard let filePath = args[argImagePath] as? String else {
+            result(ERROR)
+            return
         }
+        presentSystemShare(
+            message: args[argMessage] as? String,
+            filePaths: [filePath],
+            result: result
+        )
     }
 
     func isImage(filePath:String)->Bool{
@@ -249,17 +245,47 @@ public class ShareUtil{
 
 
     public func shareToSystem(args : [String: Any?],result: @escaping FlutterResult) {
-        let text = args[argMessage] as? String
-        let filePaths = args[argImagePaths] as? [String]
-        var data : [Any] = [text!];
-        if filePaths != nil{
-            for filePath in filePaths!{
-                data.append(URL(fileURLWithPath: filePath))
-            }
+        presentSystemShare(
+            message: args[argMessage] as? String,
+            filePaths: args[argImagePaths] as? [String] ?? [],
+            result: result
+        )
+    }
+
+    private func presentSystemShare(
+        message: String?,
+        filePaths: [String],
+        result: @escaping FlutterResult
+    ) {
+        var data: [Any] = []
+        if let message = message, !message.isEmpty {
+            data.append(message)
         }
-        let activityViewController = UIActivityViewController(activityItems: data, applicationActivities: nil)
-        UIApplication.topViewController()?.present(activityViewController, animated: true, completion: nil)
-        result(SUCCESS)
+        for filePath in filePaths where FileManager.default.fileExists(atPath: filePath) {
+            data.append(URL(fileURLWithPath: filePath))
+        }
+        guard !data.isEmpty, let presenter = UIApplication.topViewController() else {
+            result(ERROR)
+            return
+        }
+
+        let activityViewController = UIActivityViewController(
+            activityItems: data,
+            applicationActivities: nil
+        )
+        if let popover = activityViewController.popoverPresentationController {
+            popover.sourceView = presenter.view
+            popover.sourceRect = CGRect(
+                x: presenter.view.bounds.midX,
+                y: presenter.view.bounds.midY,
+                width: 0,
+                height: 0
+            )
+            popover.permittedArrowDirections = []
+        }
+        presenter.present(activityViewController, animated: true) {
+            result(self.SUCCESS)
+        }
     }
     
     
@@ -291,30 +317,12 @@ public class ShareUtil{
     
     
     
-    func shareToFacebookPost(args : [String: Any?],result: @escaping FlutterResult, delegate: SharingDelegate) {
-        let message = args[self.argMessage] as? String
-        let imagePaths = args[self.argImagePaths] as? [String]
-        
-        let content = SharePhotoContent()
-        var photos : [SharePhoto] = []
-        for image in imagePaths! {
-            let photo = SharePhoto(image: UIImage.init(contentsOfFile: image)!, isUserGenerated: true)
-            photos.append(photo)
-        }
-        content.photos = photos
-        content.hashtag = Hashtag(message!)
-        let dialog = ShareDialog(
-            viewController: UIApplication.shared.windows.first!.rootViewController,
-            content: content,
-            delegate: delegate
+    func shareToFacebookPost(args : [String: Any?],result: @escaping FlutterResult) {
+        presentSystemShare(
+            message: args[self.argMessage] as? String,
+            filePaths: args[self.argImagePaths] as? [String] ?? [],
+            result: result
         )
-        do {
-            try dialog.validate()
-        } catch {
-           result(ERROR)
-        }
-        dialog.show()
-        result(self.SUCCESS)
         
     }
     
@@ -467,26 +475,11 @@ public class ShareUtil{
     
     
     func shareToTwitter(args : [String: Any?],result: @escaping FlutterResult) {
-        let title = args[self.argMessage] as? String
-        let images = args[self.argImagePaths] as? [String]
-        if(!canOpenUrl(appName: "twitter")){
-            result(ERROR_APP_NOT_AVAILABLE)
-            return
-        }
-        
-        
-        let composeCtl = SLComposeViewController(forServiceType: SLServiceTypeTwitter)
-        if #unavailable(iOS 16) {
-            composeCtl?.add(URL(string: title!))
-        }
-        if(!(images==nil)){
-            for image in images! {
-                composeCtl?.add(UIImage.init(contentsOfFile: image))
-            }
-        }
-        composeCtl?.setInitialText(title!)
-        UIApplication.topViewController()?.present(composeCtl!,animated:true,completion:nil);
-        result(SUCCESS)
+        presentSystemShare(
+            message: args[self.argMessage] as? String,
+            filePaths: args[self.argImagePaths] as? [String] ?? [],
+            result: result
+        )
     }
 
     
@@ -546,7 +539,7 @@ public class ShareUtil{
     }
     
     
-    public func shareImageToWhatsApp(args : [String: Any?],result: @escaping FlutterResult, delegate: SharingDelegate) {
+    public func shareImageToWhatsApp(args : [String: Any?],result: @escaping FlutterResult) {
       let imagePath = args[self.argImagePath] as? String
 
       guard let url = URL(string: imagePath!) else {

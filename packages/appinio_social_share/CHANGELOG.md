@@ -1,3 +1,11 @@
+## 0.3.3
+
+* Replace removed iOS social composers with the supported system share sheet.
+* Use a direct Android share intent for Facebook to avoid hanging SDK callbacks.
+* Detect the installed Facebook app through its current iOS URL scheme.
+* Remove the Facebook SDK dependency; Facebook stories continue to use their
+  documented URL and pasteboard integration.
+
 ## [0.3.2] - 2024.08.01
 * Many bug fixes and improvements.
 * Version upgrades for dependencies.

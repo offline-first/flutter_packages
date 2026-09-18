@@ -220,17 +220,9 @@ Add these lines to your Info.plist file
 
 ***The facebook app id and facebook client token you can get by complete the steps mentioned on Android config***
 
-Add these lines to the AppDelegate.swift file
-
-```
-import FBSDKCoreKit
-
-// Put these lines in the application function
-FBSDKCoreKit.ApplicationDelegate.shared.application(
-        application,
-        didFinishLaunchingWithOptions: launchOptions
-)
-```
+Facebook feed sharing uses the native system share sheet and does not require
+Facebook SDK initialization. Facebook Story sharing still requires the app ID
+passed to `shareToFacebookStory`.
 
 <br />
 

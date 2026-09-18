@@ -1,12 +1,10 @@
 import Flutter
 import UIKit
-import FBSDKCoreKit
-import FBSDKShareKit
 import Photos
 
 
 
-public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin, SharingDelegate {
+public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin {
 
     private let INSTAGRAM_DIRECT:String = "instagram_direct";
     private let INSTAGRAM_STORIES:String = "instagram_stories";
@@ -25,10 +23,6 @@ public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin, SharingDele
 
 
     var shareUtil = ShareUtil()
-    var flutterResult: FlutterResult!
-
-
-    
   public static func register(with registrar: FlutterPluginRegistrar) {
     let channel = FlutterMethodChannel(name: "appinio_social_share", binaryMessenger: registrar.messenger())
     let instance = SwiftAppinioSocialSharePlugin()
@@ -37,7 +31,6 @@ public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin, SharingDele
 
   public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
       do {
-      flutterResult = result
       let args = call.arguments as? [String: Any?]
 
       switch (call.method) {
@@ -57,7 +50,7 @@ public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin, SharingDele
           shareUtil.shareToFacebookStory(args:args!,result:result)
           break
       case WHATSAPP_IMG_IOS:
-          shareUtil.shareImageToWhatsApp(args:args!, result:result,delegate: self)
+          shareUtil.shareImageToWhatsApp(args:args!, result:result)
           break
       case WHATSAPP:
           shareUtil.shareToWhatsApp(args:args!, result:result)
@@ -75,7 +68,7 @@ public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin, SharingDele
           shareUtil.copyToClipboard(args: args!, result: result)
           break
       case FACEBOOK:
-          shareUtil.shareToFacebookPost(args:args!, result: result,delegate: self)
+          shareUtil.shareToFacebookPost(args:args!, result: result)
           break
       case TELEGRAM:
           shareUtil.shareToTelegram(args:args!, result:result)
@@ -91,18 +84,4 @@ public class SwiftAppinioSocialSharePlugin: NSObject, FlutterPlugin, SharingDele
       }
   }
     
-    public func sharer(_ sharer: Sharing, didCompleteWithResults results: [String : Any]) {
-        flutterResult(shareUtil.SUCCESS)
-     }
-     
-     public func sharer(_ sharer: Sharing, didFailWithError error: Error) {
-         flutterResult(shareUtil.ERROR)
-     }
-     
-     public func sharerDidCancel(_ sharer: Sharing) {
-         flutterResult(shareUtil.ERROR)
-     }
-    
-    
-     
 }

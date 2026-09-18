@@ -17,16 +17,6 @@ import android.provider.Telephony;
 
 import androidx.core.content.FileProvider;
 
-import com.facebook.CallbackManager;
-import com.facebook.FacebookCallback;
-import com.facebook.FacebookException;
-import com.facebook.FacebookSdk;
-import com.facebook.share.Sharer;
-import com.facebook.share.model.ShareHashtag;
-import com.facebook.share.model.SharePhoto;
-import com.facebook.share.model.SharePhotoContent;
-import com.facebook.share.widget.ShareDialog;
-
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -40,7 +30,6 @@ import io.flutter.plugin.common.MethodChannel;
 
 public class SocialShareUtil {
     public static final String ERROR_APP_NOT_AVAILABLE = "ERROR_APP_NOT_AVAILABLE";
-    public static final String ERROR_CANCELLED = "error : cancelled";
     public static final String UNKNOWN_ERROR = "unknown error";
     public static final String SUCCESS = "SUCCESS";
 
@@ -58,9 +47,6 @@ public class SocialShareUtil {
     private final String FACEBOOK_MESSENGER_PACKAGE = "com.facebook.orca";
     private final String FACEBOOK_MESSENGER_LITE_PACKAGE = "com.facebook.mlite";
     private final String SMS_DEFAULT_APPLICATION = "sms_default_application";
-
-
-    private static CallbackManager callbackManager;
 
 
     public String shareToWhatsApp(String imagePath, String msg, Context context) {
@@ -239,40 +225,15 @@ public class SocialShareUtil {
 
 
     public void shareToFacebook(List<String> filePaths, String text, Activity activity, MethodChannel.Result result) {
-        FacebookSdk.fullyInitialize();
-        FacebookSdk.setApplicationId(getFacebookAppId(activity));
-        callbackManager = callbackManager == null ? CallbackManager.Factory.create() : callbackManager;
-        ShareDialog shareDialog = new ShareDialog(activity);
-        shareDialog.registerCallback(callbackManager, new FacebookCallback<Sharer.Result>() {
-            @Override
-            public void onSuccess(Sharer.Result result1) {
-                System.out.println("---------------onSuccess");
-                result.success(SUCCESS);
-            }
-
-            @Override
-            public void onCancel() {
-                result.success(ERROR_CANCELLED);
-            }
-
-            @Override
-            public void onError(FacebookException error) {
-                System.out.println("---------------onError");
-                result.success(error.getLocalizedMessage());
-            }
-        });
-        List<SharePhoto> sharePhotos = new ArrayList<>();
-        for (int i = 0; i < filePaths.size(); i++) {
-            Uri fileUri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".provider", new File(filePaths.get(i)));
-            sharePhotos.add(new SharePhoto.Builder().setImageUrl(fileUri).build());
+        if (filePaths == null || filePaths.isEmpty()) {
+            result.success(ERROR_APP_NOT_AVAILABLE);
+            return;
         }
-        SharePhotoContent content = new SharePhotoContent.Builder()
-                .setShareHashtag(new ShareHashtag.Builder().setHashtag(text).build())
-                .setPhotos(sharePhotos)
-                .build();
-        if (ShareDialog.canShow(SharePhotoContent.class)) {
-            shareDialog.show(content);
+        if (filePaths.size() == 1) {
+            result.success(shareFileAndTextToPackage(filePaths.get(0), text, activity, FACEBOOK_PACKAGE));
+            return;
         }
+        result.success(shareFilesAndTextToPackage(filePaths, text, activity, FACEBOOK_PACKAGE));
     }
 
     public String shareToFaceBookStory(String appId, String stickerImage, String backgroundImage, String backgroundTopColor, String backgroundBottomColor, String attributionURL, Context activity) {
@@ -341,6 +302,10 @@ public class SocialShareUtil {
 
 
     private String shareFilesToPackage(List<String> imagePaths, Context activity, String packageName) {
+        return shareFilesAndTextToPackage(imagePaths, null, activity, packageName);
+    }
+
+    private String shareFilesAndTextToPackage(List<String> imagePaths, String message, Context activity, String packageName) {
         if (imagePaths == null || imagePaths.isEmpty()) return "No files to share";
         Intent shareIntent = new Intent(Intent.ACTION_SEND_MULTIPLE);
         ArrayList<Uri> files = new ArrayList<Uri>();
@@ -353,6 +318,9 @@ public class SocialShareUtil {
         shareIntent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         shareIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
         shareIntent.setPackage(packageName);
+        if (message != null && !message.isEmpty()) {
+            shareIntent.putExtra(Intent.EXTRA_TEXT, message);
+        }
 //        if (packageName.equals(INSTAGRAM_PACKAGE) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
 //            shareIntent.setComponent(ComponentName.createRelative(packageName, "com.instagram.share.handleractivity.ShareHandlerActivity")); //open instagram feed
 //        }
